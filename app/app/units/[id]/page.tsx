@@ -51,6 +51,20 @@ export default async function UnitPage({ params }: Props) {
   const cycle = (cycles?.[0] ?? null) as Cycle | null;
   const collecting = cycle ? isCollecting(cycle) : false;
 
+  const { data: stories } = await supabase
+    .from("stories")
+    .select("id, cycle_id, response_count, generated_at")
+    .eq("unit_id", id)
+    .order("generated_at", { ascending: false })
+    .limit(10);
+
+  const storyRows = (stories ?? []) as Array<{
+    id: string;
+    cycle_id: string;
+    response_count: number;
+    generated_at: string;
+  }>;
+
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-2">
@@ -101,6 +115,29 @@ export default async function UnitPage({ params }: Props) {
           </div>
         </section>
       )}
+
+      {storyRows.length > 0 ? (
+        <section className="flex flex-col gap-4">
+          <h2 className="text-bone font-display m-0 text-[20px] font-medium">Past weeks</h2>
+          <ul className="border-hairline m-0 list-none border-t p-0">
+            {storyRows.map((story) => (
+              <li key={story.id} className="border-hairline border-b">
+                <Link
+                  href={`/app/units/${unit.id}/story/${story.cycle_id}`}
+                  className="hover:bg-panel flex items-center justify-between gap-4 px-1 py-4 no-underline transition-colors"
+                >
+                  <span className="text-bone font-display text-[17px]">
+                    Week ending {formatDeadline(story.generated_at, unit.timezone)}
+                  </span>
+                  <span className="text-dim text-[13px] tabular-nums">
+                    {story.response_count} responses →
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

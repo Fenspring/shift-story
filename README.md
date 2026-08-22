@@ -146,6 +146,44 @@ select count(*) from pg_policies where tablename = 'responses';  -- must be 0
 select relrowsecurity from pg_class where relname = 'responses';  -- must be true
 ```
 
+## Stories and themes (Phase 3)
+
+Backed by `supabase/migrations/0004_stories_and_themes.sql`.
+
+`POST /api/cycles/close` is the job that runs after deadlines pass. For each due
+cycle it either writes a story or carries the week forward:
+
+- **At or above the threshold** — reads the responses, groups them with
+  `claude-opus-5`, then calls `finalize_story()`, which writes the story and
+  themes, **destroys the raw responses**, and flips the status, all in one
+  Postgres transaction. Next week's cycle opens automatically.
+- **Below the threshold** — `carry_forward_cycle()` marks the cycle
+  `insufficient`, opens the next one, and moves the responses across.
+
+The endpoint requires `Authorization: Bearer $CRON_SECRET` and **refuses to run
+if `CRON_SECRET` is unset** — it deletes data, so it fails closed. Point a
+scheduler at it hourly (Vercel Cron, GitHub Actions, `pg_cron`); it is
+idempotent, and `stories.cycle_id` is unique so a story can never be written
+twice.
+
+Managers read stories at `/app/units/[id]/story/[cycleId]`. Below the threshold
+that page explains why there is no story instead of showing one.
+
+### Theme detection
+
+`lib/stories/detect.ts` calls `client.beta.messages.parse()` with a Zod schema
+via `zodOutputFormat`, adaptive thinking at effort `high`, and
+`fallbacks: "default"` so a safety decline is rescued in the same call. A
+refusal arrives as HTTP 200, so `stop_reason` is checked before the content.
+
+`lib/stories/scrub.ts` strips emails, URLs, phone numbers and long digit runs
+before anything is sent. It keeps room numbers, times and staffing ratios —
+scrubbing those would destroy the operational signal. It is risk reduction, not
+de-identification; the threshold, the prompt and the deletion are the real
+protections.
+
+Requires `ANTHROPIC_API_KEY`. Roughly $0.05 per story.
+
 ## Supabase client helpers
 
 [`utils/supabase/`](utils/supabase) holds the standard session-aware clients:

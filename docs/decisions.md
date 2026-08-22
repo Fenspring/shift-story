@@ -87,6 +87,46 @@ the product its credibility with the person it most needs to trust it, so
 misconfiguration and outages render as "come back later" while still logging
 loudly.
 
+## Writing the story
+
+**Generation is atomic with destruction.**
+`finalize_story()` writes the story, its themes, destroys the raw responses and
+flips the cycle status inside one Postgres function. There is no window where
+the text is gone but no story was recorded. Verified: when theme insertion
+fails, all responses survive and no story is written.
+
+**A cycle whose detection fails stays open.**
+The closer throws rather than proceeding, leaving the responses intact for a
+retry. Nothing is ever destroyed on a path where no story was written.
+
+**"Generated once" is enforced by a UNIQUE constraint**, not by application
+logic — `stories.cycle_id` is unique, and `finalize_story()` refuses a cycle
+that already has one.
+
+**Responses are read ordered by id.**
+The id is a random v4 uuid, so the sequence handed to the model carries no trace
+of who submitted when. Heap order would have reflected insertion order.
+
+**Model counts are clamped to reality.**
+`mention_count` is capped at the number of responses. A manager reads it as a
+factual claim about how many people said something, so a hallucinated 99 out of
+5 would be worse than no number at all.
+
+**Fallbacks are enabled on the detection call.**
+`fallbacks: "default"` with the server-side fallback beta, so a safety decline
+is rescued in the same call rather than leaving a unit with no story. A refusal
+arrives as HTTP 200, so `stop_reason` is checked before the content is read.
+
+**Scrubbing is risk reduction, not de-identification.**
+Emails, URLs, phone numbers and long digit runs are removed. Room numbers,
+times, bed counts and staffing ratios are deliberately kept — "the call light in
+412 has been broken a week" is exactly the signal the product exists to surface.
+The real protections are the threshold, the prompt, and deletion.
+
+**The closer refuses to run without `CRON_SECRET`.**
+It deletes data, so it fails closed rather than defaulting open. The comparison
+is constant-time.
+
 ## Organizations and access
 
 **One organization per signup.**
