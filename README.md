@@ -82,6 +82,41 @@ for a local server; leave it on for hosted providers with a self-signed chain.
 Implement `WaitlistStore` and return it from `getWaitlistStore()`. Nothing else
 in the app touches storage.
 
+## The manager app (Phase 1)
+
+Authenticated surface at `/app`, backed by `supabase/migrations/0002_core_schema.sql`.
+
+| Route | Purpose |
+| --- | --- |
+| `/signup` · `/login` | Email + password. Signup provisions an organization and profile via the `handle_new_user` trigger |
+| `/auth/callback` | Exchanges the email-confirmation code for a session |
+| `/app` | The manager's units |
+| `/app/units/new` · `/app/units/[id]` | Create and view a unit |
+
+Every table has RLS enabled and is scoped to the caller's organization through
+`current_org_id()` — a `SECURITY DEFINER` function, because reading the caller's
+org through a normal query would re-enter the very policy asking the question and
+Postgres would raise `infinite recursion detected in policy`.
+
+`middleware.ts` refreshes the Supabase session, and its matcher is scoped to
+`/app`, `/login`, and `/signup` on purpose: the landing page, the waitlist
+endpoint, and the public pages must keep working when Supabase is down. Pages
+re-check auth server-side with `getUser()` (never `getSession()`, which reads the
+cookie without verifying it), so protected routes fail closed while public ones
+fail open.
+
+Product rules that are commitments rather than configuration live in
+[`lib/cycle-policy.ts`](lib/cycle-policy.ts) and the reasoning behind them is in
+[`docs/decisions.md`](docs/decisions.md).
+
+### Verifying the schema without Supabase
+
+The RLS policies can be exercised against a local Postgres by stubbing the parts
+of Supabase they depend on — an `auth.users` table and an `auth.uid()` that reads
+the JWT subject from a session setting. That is how the org-isolation behavior in
+this repo was checked: two organizations, a unit each, then confirming neither
+can see, insert into, or move itself into the other.
+
 ## Supabase client helpers
 
 [`utils/supabase/`](utils/supabase) holds the standard session-aware clients:
