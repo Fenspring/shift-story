@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const store = getWaitlistStore();
+    const store = await getWaitlistStore(request);
     const { created } = await store.add(entry);
 
     if (created) {

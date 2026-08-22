@@ -2,6 +2,9 @@ import "server-only";
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
+
+import { createSupabaseContext } from "@supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Pool } from "pg";
 
 import type { WaitlistInput } from "./schema";
@@ -15,7 +18,52 @@ export interface WaitlistStore {
    * panel either way so the form never leaks who has already signed up.
    */
   add(entry: WaitlistInput): Promise<SignupResult>;
-  readonly kind: "postgres" | "file";
+  readonly kind: "supabase" | "postgres" | "file";
+}
+
+/* -------------------------------------------------------------------------- */
+/* Supabase                                                                   */
+/* -------------------------------------------------------------------------- */
+
+const TABLE = "waitlist_signups";
+
+/** Postgres unique-violation. Raised when the email is already on the list. */
+const UNIQUE_VIOLATION = "23505";
+
+/** PostgREST: relation missing from the schema cache. */
+const UNDEFINED_TABLE = "PGRST205";
+
+class SupabaseStore implements WaitlistStore {
+  readonly kind = "supabase" as const;
+
+  constructor(private readonly client: SupabaseClient) {}
+
+  async add(entry: WaitlistInput): Promise<SignupResult> {
+    // No `.select()` on purpose: the row is never read back, so the insert
+    // needs no read path and nothing about existing signups is returned.
+    const { error } = await this.client.from(TABLE).insert({
+      first_name: entry.firstName,
+      last_name: entry.lastName,
+      email: entry.email,
+      organization: entry.org,
+      role: entry.role,
+      unit: entry.unit || null,
+      issue: entry.issue || null,
+    });
+
+    if (!error) return { created: true };
+
+    if (error.code === UNIQUE_VIOLATION) return { created: false };
+
+    if (error.code === UNDEFINED_TABLE) {
+      throw new Error(
+        `Supabase has no "${TABLE}" table. Run supabase/migrations/0001_waitlist_signups.sql ` +
+          "in the SQL Editor, then try again.",
+      );
+    }
+
+    throw new Error(`Supabase insert failed (${error.code ?? "unknown"}): ${error.message}`);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -151,30 +199,61 @@ class FileStore implements WaitlistStore {
 /* Selection                                                                  */
 /* -------------------------------------------------------------------------- */
 
-let store: WaitlistStore | null = null;
+let fallbackStore: WaitlistStore | null = null;
 
-export function getWaitlistStore(): WaitlistStore {
-  if (store) return store;
+function supabaseConfigured(): boolean {
+  return Boolean(process.env.SUPABASE_URL?.trim());
+}
+
+/**
+ * Resolves the backend for a request, in priority order:
+ *
+ *   1. Supabase, when `SUPABASE_URL` is set.
+ *   2. Direct Postgres, when `DATABASE_URL` is set.
+ *   3. A local JSONL file — development only.
+ */
+export async function getWaitlistStore(request: Request): Promise<WaitlistStore> {
+  if (supabaseConfigured()) {
+    if (!process.env.SUPABASE_SECRET_KEY?.trim()) {
+      // Falling back to the publishable key would hit RLS and fail with an
+      // opaque permission error, so say plainly what is missing instead.
+      throw new Error(
+        "SUPABASE_SECRET_KEY is not set. Waitlist writes use the secret key so they " +
+          "bypass Row-Level Security; the publishable key cannot write this table. " +
+          "Copy the full key from Supabase → Project Settings → API Keys.",
+      );
+    }
+
+    // `auth: "none"` because there is no user to verify — this is an
+    // unauthenticated public form. The write goes through `supabaseAdmin`,
+    // which uses the secret key and bypasses RLS.
+    const { data, error } = await createSupabaseContext(request, { auth: "none" });
+    if (error) throw error;
+
+    return new SupabaseStore(data.supabaseAdmin);
+  }
+
+  if (fallbackStore) return fallbackStore;
 
   const url = process.env.DATABASE_URL?.trim();
 
   if (url) {
-    store = new PostgresStore(createPool(url));
+    fallbackStore = new PostgresStore(createPool(url));
   } else {
     if (process.env.NODE_ENV === "production") {
       // Serverless filesystems are ephemeral and per-instance: writing signups
       // there loses them. Fail loudly at the first request rather than accept
       // submissions into a file that is about to disappear.
       throw new Error(
-        "DATABASE_URL is not set. The local file store is for development only — " +
-          "configure Postgres before serving the waitlist in production.",
+        "No waitlist storage configured. Set SUPABASE_URL and SUPABASE_SECRET_KEY " +
+          "(or DATABASE_URL) — the local file store is for development only.",
       );
     }
     console.warn(
-      "[waitlist] DATABASE_URL not set — writing signups to .data/waitlist.jsonl (development only).",
+      "[waitlist] No Supabase or Postgres configured — writing signups to .data/waitlist.jsonl (development only).",
     );
-    store = new FileStore(path.join(process.cwd(), ".data", "waitlist.jsonl"));
+    fallbackStore = new FileStore(path.join(process.cwd(), ".data", "waitlist.jsonl"));
   }
 
-  return store;
+  return fallbackStore;
 }

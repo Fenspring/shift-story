@@ -24,29 +24,82 @@ npm run dev                  # http://localhost:3000
 
 ## Storage
 
-Waitlist signups are written through a small store interface in
-[`lib/waitlist/store.ts`](lib/waitlist/store.ts), which picks a backend from the
-environment:
+Waitlist signups go through a `WaitlistStore` interface in
+[`lib/waitlist/store.ts`](lib/waitlist/store.ts). The backend is chosen from the
+environment, in this order:
 
-- **`DATABASE_URL` set** → Postgres. The `waitlist_signups` table is created on
-  first write, so there is no migration step. Emails are stored lowercased with
-  a unique constraint.
-- **`DATABASE_URL` unset** → a local JSONL file at `.data/waitlist.jsonl`.
-  **Development only.** In production the app throws on the first submission
-  rather than accepting signups into an ephemeral serverless filesystem.
+1. **Supabase** — when `SUPABASE_URL` is set. This is the intended production
+   backend.
+2. **Direct Postgres** — when `DATABASE_URL` is set and Supabase is not.
+3. **Local JSONL file** at `.data/waitlist.jsonl` — development only. In
+   production the app throws on the first submission rather than accept signups
+   onto an ephemeral serverless filesystem.
 
-Set `DATABASE_SSL=false` for a local Postgres; leave it on for hosted providers
-(Supabase, Neon, RDS) that present a self-signed chain.
+### Supabase setup
 
-To use a different backend — Supabase client, Airtable, an email service —
-implement `WaitlistStore` and return it from `getWaitlistStore()`. Nothing else
-in the app touches storage.
+**1. Create the table.** Run
+[`supabase/migrations/0001_waitlist_signups.sql`](supabase/migrations/0001_waitlist_signups.sql)
+in the Supabase SQL Editor (or `supabase db push`). It is idempotent.
 
-### Local Postgres
+**2. Set the environment.** Copy `.env.example` to `.env.local` and fill in:
+
+```
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_SECRET_KEY=sb_secret_...
+```
+
+`SUPABASE_SECRET_KEY` is required. Writes use the secret key so they bypass
+Row-Level Security — the publishable key cannot write this table, and the app
+says so explicitly rather than failing with an opaque permission error.
+
+### Why the table has RLS on and no policies
+
+The migration enables Row-Level Security and defines **no** policies. That is
+deliberate, and it is the security boundary for this table:
+
+- The only writer is the server, using the secret key, which bypasses RLS.
+- With RLS on and no policy, `anon` and `authenticated` can neither read nor
+  write the table through the public API.
+
+Do not add an `anon` insert policy to "make the form work" — that would let
+anyone POST straight to PostgREST, skipping the rate limit, honeypot, and
+validation in `/api/waitlist`. And any read policy would expose the work email
+of every nurse leader who signed up. The table holds PII; treat it that way.
+
+### Direct Postgres (alternative)
 
 ```bash
 createdb shiftstory
-DATABASE_URL=postgres://localhost:5432/shiftstory DATABASE_SSL=false npm run dev
+SUPABASE_URL= DATABASE_URL=postgres://localhost:5432/shiftstory DATABASE_SSL=false npm run dev
+```
+
+The `waitlist_signups` table is created on first write. Set `DATABASE_SSL=false`
+for a local server; leave it on for hosted providers with a self-signed chain.
+
+### Other backends
+
+Implement `WaitlistStore` and return it from `getWaitlistStore()`. Nothing else
+in the app touches storage.
+
+## Supabase client helpers
+
+[`utils/supabase/`](utils/supabase) holds the standard session-aware clients:
+`server.ts` for Server Components and Route Handlers, `client.ts` for Client
+Components, and `middleware.ts` for refreshing auth sessions.
+
+**None of these are used yet.** The app has no authenticated routes — the
+waitlist writes server-side with the secret key and never touches a user
+session. They are scaffolding for when authenticated pages arrive (a leader
+dashboard, for instance).
+
+In particular there is no root `middleware.ts` invoking `updateSession`, because
+that would add a hop to every request for no benefit today. To activate it:
+
+```ts
+// middleware.ts
+export { updateSession as middleware } from "@/utils/supabase/middleware";
+export const config = { matcher: ["/dashboard/:path*"] };
 ```
 
 ## The waitlist endpoint
@@ -70,13 +123,22 @@ DATABASE_URL=postgres://localhost:5432/shiftstory DATABASE_SSL=false npm run dev
 
 See [`.env.example`](.env.example). All are optional in development.
 
-| Variable                    | Purpose                                     |
-| --------------------------- | ------------------------------------------- |
-| `DATABASE_URL`              | Postgres connection string. Required in prod |
-| `DATABASE_SSL`              | `false` to disable TLS (local Postgres)     |
-| `WAITLIST_WEBHOOK_URL`      | Notify on each new signup                    |
-| `NEXT_PUBLIC_SITE_URL`      | Canonical origin for metadata and sitemap    |
-| `NEXT_PUBLIC_CONTACT_EMAIL` | Address shown on `/contact`                  |
+| Variable                            | Purpose                                       |
+| ----------------------------------- | --------------------------------------------- |
+| `SUPABASE_URL`                      | Project URL. Selects the Supabase backend      |
+| `SUPABASE_SECRET_KEY`               | **Secret.** Server-side writes, bypasses RLS   |
+| `SUPABASE_PUBLISHABLE_KEY`          | Public key for session-scoped clients          |
+| `SUPABASE_JWKS_URL`                 | JWKS endpoint for JWT verification             |
+| `NEXT_PUBLIC_SUPABASE_URL`          | Browser-visible project URL                    |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-visible publishable key            |
+| `DATABASE_URL`                      | Direct Postgres, used when Supabase is unset   |
+| `DATABASE_SSL`                      | `false` to disable TLS (local Postgres)        |
+| `WAITLIST_WEBHOOK_URL`              | Notify on each new signup                      |
+| `NEXT_PUBLIC_SITE_URL`              | Canonical origin for metadata and sitemap      |
+| `NEXT_PUBLIC_CONTACT_EMAIL`         | Address shown on `/contact`                    |
+
+Never prefix `SUPABASE_SECRET_KEY` with `NEXT_PUBLIC_`. Anything so prefixed is
+inlined into the client bundle and served to every visitor.
 
 ## Project layout
 
@@ -90,6 +152,8 @@ app/
   robots.ts sitemap.ts  SEO routes
 components/             One component per landing-page section
 lib/                    Validation, storage, rate limiting, hooks
+utils/supabase/         Session-aware Supabase clients (unused until auth)
+supabase/migrations/    SQL for the waitlist table and its RLS posture
 design_handoff_shift_story_landing/
                         Original design reference (not built or linted)
 ```
@@ -122,7 +186,10 @@ and a reduced-motion path. Worth re-checking with a screen reader before launch.
 
 ## Before going live
 
-- Point `DATABASE_URL` at a real Postgres instance.
+- Run `supabase/migrations/0001_waitlist_signups.sql` against the project, then
+  confirm RLS is on and the table has zero policies (the migration ends with the
+  two queries to check).
+- Set `SUPABASE_SECRET_KEY` in the deployment environment, not just locally.
 - Replace `/privacy` with a reviewed policy. The current page describes waitlist
   handling only and is explicitly marked pre-launch.
 - Confirm the six anonymity commitments in the "Safe enough for staff to tell
