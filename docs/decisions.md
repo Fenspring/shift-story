@@ -49,6 +49,44 @@ what staff took the trouble to write. The carried responses are deleted with
 everything else when the story that finally includes them is generated. A
 consequence to accept: a story may span more than one week on a quiet unit.
 
+## Collecting responses
+
+**Per-IP rate limiting cannot be a per-person control here.**
+A hospital sits behind a handful of egress IPs — a whole unit scanning the QR
+looks like one address. The limit in `/api/respond` is set far above what a real
+unit produces and exists only to stop a scripted flood. Tightening it to
+"one per IP" would lock out an entire ward.
+
+**Double-submit protection is a cookie with a visible way past it.**
+The marker is per-cycle, httpOnly, and carries nothing about what was written.
+Break-room computers are shared, so blocking hard on it would stop the second
+nurse from answering at all — the page offers "Sharing this device? Answer
+anyway" instead. This discourages casual repeats; it does not prevent a
+determined one, and it cannot, because there is no identity to check against.
+
+**Response tokens are stored in plaintext.**
+The token is a submission capability, not a read capability, and the manager has
+to be able to re-display the QR. A database leak would let an attacker post junk
+responses to a unit; it grants no read access to anything. Rotating a unit's
+token revokes the old one immediately, which is the answer when a printout
+leaves the ward.
+
+**The deadline is enforced server-side, not just in the UI.**
+Nothing flips `status` to 'closed' at the deadline yet — that is the scheduled
+job arriving with story generation — so `closes_at` is the authority and both
+the response page and `/api/respond` check it.
+
+**Each unit carries its own timezone.**
+Captured from the browser at unit creation. A Friday deadline computed in UTC
+lands on Thursday evening across most of the US. `next_cycle_close()` does the
+arithmetic in Postgres, which handles DST correctly.
+
+**The staff response page fails soft.**
+It is the one surface reached by scanning a poster. A stack trace there costs
+the product its credibility with the person it most needs to trust it, so
+misconfiguration and outages render as "come back later" while still logging
+loudly.
+
 ## Organizations and access
 
 **One organization per signup.**

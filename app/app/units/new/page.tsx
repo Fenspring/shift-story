@@ -5,11 +5,13 @@ import { useActionState } from "react";
 
 import { Field, FormError, SubmitButton } from "@/components/app/form";
 import { createUnit, type ActionState } from "@/lib/auth/actions";
+import { useTimeZone } from "@/lib/use-timezone";
 
 const INITIAL: ActionState = { error: null };
 
 export default function NewUnitPage() {
   const [state, formAction] = useActionState(createUnit, INITIAL);
+  const timezone = useTimeZone();
 
   return (
     <div className="flex max-w-[460px] flex-col gap-7">
@@ -28,6 +30,7 @@ export default function NewUnitPage() {
 
       <form action={formAction} className="flex flex-col gap-4">
         <FormError message={state.error} />
+        <input type="hidden" name="timezone" value={timezone} />
         <Field
           name="name"
           label="Unit name"
@@ -35,6 +38,10 @@ export default function NewUnitPage() {
           autoFocus
           hint="For example, 4 West, Emergency, or Labor &amp; Delivery."
         />
+        <p className="text-dim m-0 text-[12.5px] leading-[1.55]">
+          Responses will close each Friday at 11:59pm in{" "}
+          <span className="text-muted">{timezone}</span>.
+        </p>
         <SubmitButton pendingLabel="Creating…">Create unit</SubmitButton>
       </form>
     </div>

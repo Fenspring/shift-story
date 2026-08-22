@@ -117,6 +117,35 @@ the JWT subject from a session setting. That is how the org-isolation behavior i
 this repo was checked: two organizations, a unit each, then confirming neither
 can see, insert into, or move itself into the other.
 
+## Cycles and responses (Phase 2)
+
+Backed by `supabase/migrations/0003_cycles_and_responses.sql`.
+
+| Route | Who | Purpose |
+| --- | --- | --- |
+| `/app/units/[id]` | Manager | Cycle status, response count, QR code, rotate link |
+| `/app/units/[id]/poster` | Manager | Printable QR for the break room |
+| `/r/[token]` | Staff | The response form. No auth, no index |
+| `/api/respond` | Staff | Validates, checks the deadline, writes the response |
+
+A cycle opens with the fixed weekly question and closes Friday 23:59:59 in the
+unit's own timezone, computed by `next_cycle_close()` in Postgres so DST is
+handled correctly. `cycles.response_count` is maintained by a trigger, which is
+what lets a manager read a count while having no path at all to the responses.
+
+**`responses` has no policies.** RLS is on and the policy list is empty, so
+neither `anon` nor `authenticated` can read or write it through the API — the
+only access is the server holding the secret key. The table also has no author
+column, no IP, no user agent and no submission timestamp; a timestamp alone
+would sign a response on a unit running two nurses overnight.
+
+Verify after migrating:
+
+```sql
+select count(*) from pg_policies where tablename = 'responses';  -- must be 0
+select relrowsecurity from pg_class where relname = 'responses';  -- must be true
+```
+
 ## Supabase client helpers
 
 [`utils/supabase/`](utils/supabase) holds the standard session-aware clients:

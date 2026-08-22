@@ -27,7 +27,27 @@ const loginSchema = z.object({
 
 const unitSchema = z.object({
   name: z.string().trim().min(1, "Give the unit a name.").max(120),
+  // Submitted by the browser. Validated against the runtime's own zone list so
+  // a forged value cannot reach next_cycle_close(), where Postgres would raise
+  // on an unrecognized zone.
+  timezone: z
+    .string()
+    .trim()
+    .max(64)
+    .optional()
+    .default("UTC")
+    .transform((tz) => (isValidTimeZone(tz) ? tz : "UTC")),
 });
+
+function isValidTimeZone(tz: string): boolean {
+  if (!tz) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Forms here are short enough that one message at a time is clearer than a list. */
 function firstError(error: z.ZodError): string {
@@ -100,7 +120,10 @@ export async function createUnit(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const parsed = unitSchema.safeParse({ name: formData.get("name") });
+  const parsed = unitSchema.safeParse({
+    name: formData.get("name"),
+    timezone: formData.get("timezone"),
+  });
   if (!parsed.success) return { error: firstError(parsed.error) };
 
   const supabase = createClient(await cookies());
@@ -120,7 +143,12 @@ export async function createUnit(
 
   const { data: unit, error } = await supabase
     .from("units")
-    .insert({ org_id: profile.org_id, name: parsed.data.name, created_by: user.id })
+    .insert({
+      org_id: profile.org_id,
+      name: parsed.data.name,
+      timezone: parsed.data.timezone,
+      created_by: user.id,
+    })
     .select("id")
     .single<{ id: string }>();
 
