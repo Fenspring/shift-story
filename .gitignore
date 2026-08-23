@@ -11,3 +11,7 @@ npm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 .data/
+
+# Seeded design canvas — a ~2MB generated bundle, rebuilt from the .dc.html
+# artboards and canvas.json beside it. The sources are tracked; this is not.
+.design/shift-story-landing.html
