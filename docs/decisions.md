@@ -127,6 +127,55 @@ The real protections are the threshold, the prompt, and deletion.
 It deletes data, so it fails closed rather than defaulting open. The comparison
 is constant-time.
 
+## The product loop
+
+**Insights unlock at 8 responses, not at the deadline.** *(supersedes the
+earlier deadline-only rule)*
+Themes and de-identified excerpts appear as soon as a cycle reaches its
+threshold, so a leader is not blocked until Friday. The Friday deadline still
+closes the cycle, freezes the story and destroys the raw responses.
+
+*The cost, stated plainly:* live counts can be differenced. A leader watching
+the dashboard as response 9 arrives learns which theme it touched. The frozen
+story was immune to this; live aggregates are not. Worth revisiting if a unit
+ever reports feeling watched — banding the counts would close it at the cost of
+the exact numbers.
+
+**The threshold lives in the database, not the UI.**
+`cycle_theme_counts()` and `cycle_safe_excerpts()` return nothing below the
+minimum, and `response_themes` carries no select policy — so there is no query a
+leader can write that counts around the gate. Verified: an authenticated leader
+reading the link table directly gets 0 rows while 10 exist.
+
+**Leaders never read `body`.**
+`responses.safe_excerpt` is computed at write time and is the only text the
+leader-facing functions return. It is NULL whenever the de-identifier was not
+confident, and those responses are simply absent.
+
+**De-identification fails closed.**
+Rejects names (including at the start of a sentence — the case that first
+slipped through), patient and room references, record numbers, contact details,
+and anything too long to vet. It drops plenty of innocent responses; a leader
+seeing four excerpts instead of six costs nothing, recognising who wrote one
+costs the product its premise.
+
+**Classification is deterministic keyword matching, behind an interface.**
+`Classifier` in `lib/themes/classify.ts` — inspectable, free, instant, and
+explainable to a nurse leader. Swapping in a model means providing another
+implementation of one function. The Claude path from the earlier milestone
+remains for the frozen weekly story only.
+
+**Response tokens: hashed lookup, plaintext retained for display.**
+The submit path matches `token_hash`. The plaintext stays because the manager
+must re-render a QR already taped to a wall — a token on a wall is public by
+construction, so hashing it away would break the feature while protecting
+nothing. Per-recipient single-use tokens will be hash-only when messaging lands.
+
+**Demo data seeds into the leader's own organization.**
+A separate demo tenant would need cross-org access to be visible. The demo unit
+is labelled, idempotent, and goes through the same classification and
+de-identification code as a real submission.
+
 ## Organizations and access
 
 **One organization per signup.**

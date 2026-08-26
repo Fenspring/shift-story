@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { createClient } from "@/utils/supabase/server";
 import { requireManager } from "@/lib/auth/session";
+import { seedDemoUnit } from "@/lib/loop/demo";
 
 export const metadata: Metadata = { title: "Your units" };
 
@@ -33,12 +34,22 @@ export default async function AppHome() {
             Each unit collects its own anonymous responses and gets its own story.
           </p>
         </div>
-        <Link
-          href="/app/units/new"
-          className="bg-amber text-ink hover:bg-amber-bright rounded-sharp px-5 py-3 text-[14px] font-semibold whitespace-nowrap no-underline transition-colors"
-        >
-          New unit
-        </Link>
+        <div className="flex flex-wrap items-center gap-4">
+          <form action={seedDemoUnit}>
+            <button
+              type="submit"
+              className="text-dim hover:text-teal cursor-pointer border-none bg-transparent p-0 text-[13.5px] whitespace-nowrap transition-colors"
+            >
+              Load demo unit
+            </button>
+          </form>
+          <Link
+            href="/app/units/new"
+            className="bg-amber text-ink hover:bg-amber-bright rounded-sharp px-5 py-3 text-[14px] font-semibold whitespace-nowrap no-underline transition-colors"
+          >
+            New unit
+          </Link>
+        </div>
       </div>
 
       {rows.length === 0 ? (

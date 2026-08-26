@@ -3,7 +3,21 @@ import { cookies, headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import {
+  ActionPanel,
+  ExcerptPanel,
+  ProtectedPanel,
+  ThemePanel,
+  UpdatePanel,
+} from "@/components/app/LoopPanels";
 import { RotateTokenButton, StartCycleButton } from "@/components/app/CycleControls";
+import { ShareControls } from "@/components/app/ShareControls";
+import {
+  getActions,
+  getSafeExcerpts,
+  getThemeCounts,
+  getUpdates,
+} from "@/lib/loop/queries";
 import { WEEKLY_QUESTION } from "@/lib/cycle-policy";
 import { ensureToken } from "@/lib/cycles/actions";
 import { renderQrSvg, responseUrl } from "@/lib/cycles/qr";
@@ -50,6 +64,19 @@ export default async function UnitPage({ params }: Props) {
 
   const cycle = (cycles?.[0] ?? null) as Cycle | null;
   const collecting = cycle ? isCollecting(cycle) : false;
+
+  const [actions, updates] = await Promise.all([
+    getActions(supabase, id),
+    getUpdates(supabase, id),
+  ]);
+
+  const thresholdMet = cycle ? cycle.response_count >= cycle.min_responses : false;
+  const [themes, excerpts] = thresholdMet && cycle
+    ? await Promise.all([
+        getThemeCounts(supabase, cycle.id),
+        getSafeExcerpts(supabase, cycle.id),
+      ])
+    : [[], []];
 
   const { data: stories } = await supabase
     .from("stories")
@@ -115,6 +142,28 @@ export default async function UnitPage({ params }: Props) {
           </div>
         </section>
       )}
+
+      {cycle ? (
+        thresholdMet ? (
+          <>
+            <ThemePanel
+              themes={themes}
+              unitId={unit.id}
+              cycleId={cycle.id}
+              responses={cycle.response_count}
+            />
+            <ExcerptPanel excerpts={excerpts} />
+          </>
+        ) : (
+          <ProtectedPanel
+            responses={cycle.response_count}
+            threshold={cycle.min_responses}
+          />
+        )
+      ) : null}
+
+      <ActionPanel actions={actions} unitId={unit.id} />
+      <UpdatePanel updates={updates} unitId={unit.id} />
 
       {storyRows.length > 0 ? (
         <section className="flex flex-col gap-4">
@@ -217,6 +266,8 @@ async function CollectingPanel({
                 {url}
               </code>
             </div>
+
+            <ShareControls url={url} qrSvg={qr} unitName={unit.name} />
 
             <Link
               href={`/app/units/${unit.id}/poster`}

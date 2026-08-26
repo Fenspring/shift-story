@@ -27,6 +27,13 @@ const loginSchema = z.object({
 
 const unitSchema = z.object({
   name: z.string().trim().min(1, "Give the unit a name.").max(120),
+  unitType: z.string().trim().max(60).optional().default(""),
+  staffCount: z.coerce
+    .number()
+    .int()
+    .min(1, "Staff count must be at least 1.")
+    .max(2000, "That looks too large for one unit.")
+    .optional(),
   // Submitted by the browser. Validated against the runtime's own zone list so
   // a forged value cannot reach next_cycle_close(), where Postgres would raise
   // on an unrecognized zone.
@@ -120,8 +127,12 @@ export async function createUnit(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const rawStaff = String(formData.get("staffCount") ?? "").trim();
+
   const parsed = unitSchema.safeParse({
     name: formData.get("name"),
+    unitType: formData.get("unitType"),
+    staffCount: rawStaff === "" ? undefined : rawStaff,
     timezone: formData.get("timezone"),
   });
   if (!parsed.success) return { error: firstError(parsed.error) };
@@ -146,6 +157,8 @@ export async function createUnit(
     .insert({
       org_id: profile.org_id,
       name: parsed.data.name,
+      unit_type: parsed.data.unitType || null,
+      staff_count: parsed.data.staffCount ?? null,
       timezone: parsed.data.timezone,
       created_by: user.id,
     })

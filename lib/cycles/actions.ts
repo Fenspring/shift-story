@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { WEEKLY_QUESTION, MIN_RESPONSES } from "@/lib/cycle-policy";
-import { generateResponseToken } from "@/lib/cycles/tokens";
+import { generateResponseToken, hashResponseToken } from "@/lib/cycles/tokens";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { createClient } from "@/utils/supabase/server";
 
@@ -93,7 +93,7 @@ export async function ensureToken(unitId: string): Promise<string> {
   const token = generateResponseToken();
   const { error } = await admin
     .from("response_tokens")
-    .insert({ unit_id: unitId, token });
+    .insert({ unit_id: unitId, token, token_hash: hashResponseToken(token) });
 
   if (error) throw new Error(`Could not create a response link: ${error.message}`);
   return token;
