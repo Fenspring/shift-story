@@ -15,3 +15,7 @@ next-env.d.ts
 # Seeded design canvas — a ~2MB generated bundle, rebuilt from the .dc.html
 # artboards and canvas.json beside it. The sources are tracked; this is not.
 .design/shift-story-landing.html
+
+# Walkthrough output — screenshots, clips and the stitched video are produced
+# by `npm run demo` and regenerated on every run.
+demo-output/

@@ -82,6 +82,48 @@ for a local server; leave it on for hosted providers with a self-signed chain.
 Implement `WaitlistStore` and return it from `getWaitlistStore()`. Nothing else
 in the app touches storage.
 
+## Automated product walkthrough
+
+```bash
+npm run dev          # in one terminal
+npm run demo         # in another
+```
+
+Drives the real application in a real browser: manager signs in, creates an ICU
+unit, opens the week's question, generates the QR link, staff answer through the
+anonymous response page, the threshold is crossed, themes appear, the manager
+acts on Equipment & supplies and publishes a You said / We did.
+
+Nothing is stubbed or fast-pathed. Every screen is the shipped screen, every
+write goes through the real routes, and the privacy threshold is enforced by the
+database, not by the script.
+
+Output lands in `demo-output/` (gitignored):
+
+- `screenshots/` — numbered, one per stage
+- `clips/` — one WebM per act, straight from Playwright
+- `shift-story-walkthrough.mp4` — the three acts stitched together
+
+The first response is submitted by hand through the browser; the rest go through
+`POST /api/respond`, the same endpoint the form posts to, so the recording does
+not spend minutes on eight identical form fills. Same validation, same
+classification, same de-identification.
+
+Two of the ten synthetic responses name a person or a room on purpose, so the
+de-identifier is visibly seen withholding them from the excerpt panel.
+
+The run is repeatable: it deletes the previous demo organization before starting,
+so re-running after a product change gives a clean comparison.
+
+### Dependencies, and why
+
+- **playwright** — the browser automation. Chromium comes from
+  `npx playwright install chromium` (or an existing install via `DEMO_CHROMIUM`).
+- **ffmpeg-static** — Playwright bundles an ffmpeg, but it is a stripped build
+  with two encoders and only the WebM muxer; it physically cannot write MP4.
+  This provides a complete one. Without it the walkthrough still runs and still
+  stitches, just to WebM.
+
 ## Verifying against a real Supabase project
 
 ```bash
