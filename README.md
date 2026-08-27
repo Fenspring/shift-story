@@ -82,6 +82,34 @@ for a local server; leave it on for hosted providers with a self-signed chain.
 Implement `WaitlistStore` and return it from `getWaitlistStore()`. Nothing else
 in the app touches storage.
 
+## Verifying against a real Supabase project
+
+```bash
+npm run verify
+```
+
+Creates two temporary leaders at two different hospitals, drives the whole loop
+through the real API with real signed-in sessions, checks every privacy
+guarantee, and deletes everything it made. Nothing in it trusts the application
+layer — each check goes through PostgREST exactly as a browser would, so RLS and
+the threshold functions are what is actually under test.
+
+It needs `SUPABASE_URL`, `SUPABASE_SECRET_KEY` and `SUPABASE_PUBLISHABLE_KEY` in
+`.env.local`, and network access to the project. Exits non-zero on any failure,
+so it works in CI.
+
+What it asserts:
+
+- The signup trigger provisions an organization and profile
+- A leader can create a unit; a leader at another hospital cannot see it
+- At 5 responses: no themes, no excerpts, no raw responses, and no way to count
+  around the gate through `response_themes`
+- At 10: themes and excerpts appear, raw responses still unreachable
+- The other hospital's leader gets nothing from either threshold function
+- Actions and You said / We did write through the RLS insert policies, and stay
+  invisible to the other organization
+- `anon` is refused on `finalize_story` and reads no units or responses
+
 ## The manager app (Phase 1)
 
 Authenticated surface at `/app`, backed by `supabase/migrations/0002_core_schema.sql`.
