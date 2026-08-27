@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@theme {
+  /* Surfaces */
+  --color-ink: #0b1118;
+  --color-panel: #0d151f;
+  --color-panel-raised: #111b26;
+  --color-panel-high: #151f2b;
+
+  /* Type */
+  --color-bone: #f3efe7;
+  --color-secondary: #b7c0cc;
+  --color-muted: #8b99a8;
+  --color-dim: #6e7b89;
+  --color-rule: #3d4c5a;
+
+  /* Accents */
+  --color-amber: #f2a65a;
+  --color-amber-bright: #f5b975;
+  --color-teal: #72b6ad;
+
+  /* Light trust panel */
+  --color-parchment-text: #3a3530;
+  --color-parchment-accent: #8a6a3f;
+
+  /* Hairlines */
+  --color-hairline: rgb(243 239 231 / 0.08);
+  --color-hairline-strong: rgb(243 239 231 / 0.18);
+  --color-hairline-ink: rgb(11 17 24 / 0.15);
+
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sharp: 2px;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-ink);
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  /* Interactive elements get a visible focus ring; nav links opt out via
+     `focus-visible:outline-none` where the design calls for it. */
+  :focus-visible {
+    outline: 2px solid var(--color-teal);
+    outline-offset: 2px;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(16px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes grain-shift {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(-40px, -30px);
+  }
+}
+
+/* Transform-only entrance: opacity stays at 1 so copy is never invisible if
+   the animation is skipped or fails to run. */
+.animate-slide-up {
+  animation: slide-up 0.7s ease both;
+}
+
+.animate-grain {
+  animation: grain-shift 14s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

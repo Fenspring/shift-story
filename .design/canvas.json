@@ -1,0 +1,56 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 2600,
+      "title": "Landing page"
+    },
+    {
+      "file": "MainMobile.dc.html",
+      "x": 1600,
+      "y": 0,
+      "w": 390,
+      "h": 2820,
+      "title": "Landing page \u2014 phone"
+    },
+    {
+      "file": "DirectionWarm.dc.html",
+      "x": 0,
+      "y": 2940,
+      "w": 1440,
+      "h": 900,
+      "title": "Alt direction \u2014 Warm"
+    },
+    {
+      "file": "DirectionProof.dc.html",
+      "x": 1600,
+      "y": 2940,
+      "w": 1440,
+      "h": 900,
+      "title": "Alt direction \u2014 Executive"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "why-main",
+      "x": 0,
+      "y": -170,
+      "w": 620,
+      "text": "The change that does the work: the You said / We did exchange moves out of section five and into the hero. It is the thing that makes a manager think \"I want to be able to post that\" \u2014 and it lands in about two seconds.\n\nThe live page also never mentions patients. The band below the fold now names the chain: safe to say \u2192 acted on \u2192 visible \u2192 caught earlier."
+    },
+    {
+      "id": "alts",
+      "x": 0,
+      "y": 2760,
+      "w": 560,
+      "text": "Two alternate hero directions, on different axes \u2014 not five shades of the same idea.\n\nWarm: parchment ground, softer register, aimed at the manager.\nExecutive: leads with the annual-survey failure, aimed at the CNO with a turnover problem."
+    }
+  ],
+  "launch": {
+    "view": "focused",
+    "file": "Main.dc.html"
+  }
+}

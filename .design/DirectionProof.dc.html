@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #0b1118; }
+    a { color: #72b6ad; text-decoration: none; }
+    a:hover { color: #f2a65a; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 900px; background: #0b1118; color: #f3efe7; font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif; display: flex; flex-direction: column;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 22px 72px; border-bottom: 1px solid rgba(243,239,231,0.08);">
+    <span style="font-family: 'Fraunces', ui-serif, Georgia, serif; font-size: 21px; font-weight: 500;">Shift Story</span>
+    <span style="display: inline-block; background: #f2a65a; color: #0b1118; font-weight: 600; font-size: 14px; padding: 10px 20px; border-radius: 2px;">Book a walkthrough</span>
+  </div>
+
+  <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; gap: 44px; padding: 0 72px;">
+    <div style="display: flex; flex-direction: column; gap: 24px; max-width: 30ch;">
+      <span style="font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #72b6ad;">For CNOs and directors of nursing</span>
+      <h1 style="font-family: 'Fraunces', ui-serif, Georgia, serif; font-weight: 400; font-size: 56px; line-height: 1.14; letter-spacing: -0.015em; margin: 0; text-wrap: balance;">You survey them once a year. They live it every shift.</h1>
+    </div>
+
+    <p style="font-size: 19px; line-height: 1.62; color: #b7c0cc; margin: 0; max-width: 58ch;">The annual engagement survey tells you morale is down eleven months after the reason. Shift Story gives every unit a weekly read on operational friction &mdash; and gives the manager something to show for it before the next one comes round.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; border-top: 1px solid rgba(243,239,231,0.12); padding-top: 32px; max-width: 1100px;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span style="font-family: 'Fraunces', ui-serif, Georgia, serif; font-size: 34px; color: #f2a65a; line-height: 1;">Weekly</span>
+        <span style="font-size: 15px; line-height: 1.6; color: #b7c0cc;">Not annual. You see friction while it is still cheap to fix.</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span style="font-family: 'Fraunces', ui-serif, Georgia, serif; font-size: 34px; color: #f2a65a; line-height: 1;">Per unit</span>
+        <span style="font-size: 15px; line-height: 1.6; color: #b7c0cc;">Rolled to a system view, but owned where the work happens.</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <span style="font-family: 'Fraunces', ui-serif, Georgia, serif; font-size: 34px; color: #f2a65a; line-height: 1;">Closed loop</span>
+        <span style="font-size: 15px; line-height: 1.6; color: #b7c0cc;">Every theme ends in an action the unit can actually see.</span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 20px;">
+      <span style="display: inline-block; background: #f2a65a; color: #0b1118; font-weight: 600; font-size: 16px; padding: 17px 30px; border-radius: 2px;">Book a walkthrough</span>
+      <span style="font-size: 14px; color: #6e7b89;">Or start with one unit &mdash; no IT project, no EHR integration.</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
