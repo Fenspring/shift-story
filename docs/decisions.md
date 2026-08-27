@@ -176,6 +176,44 @@ A separate demo tenant would need cross-org access to be visible. The demo unit
 is labelled, idempotent, and goes through the same classification and
 de-identification code as a real submission.
 
+## Database surface
+
+**Every function in `public` is a public REST endpoint until you revoke it.**
+Supabase exposes `public.*` at `/rest/v1/rpc/<name>` and grants EXECUTE to anon
+and authenticated by default. That made `finalize_story` — which DELETES a
+cycle's raw responses — callable by anyone on the internet holding a cycle id.
+Caught by the Supabase security advisor after 0005; closed in 0006.
+
+The rule going forward: any new function in `public` needs an explicit grant
+decision in the same migration that creates it. Server-only functions get
+revoked from anon and authenticated; leader-facing ones get granted to
+authenticated only.
+
+**`current_org_id()` must stay executable by `authenticated`.**
+Every RLS policy calls it during evaluation. Revoking EXECUTE would make those
+policies fail with permission denied rather than return no rows — the advisor
+flags it, and the flag is one to accept, not act on.
+
+**Trigger functions keep firing after their EXECUTE is revoked.**
+Postgres checks EXECUTE at CREATE TRIGGER time, not at fire time. Verified
+rather than assumed: the response count still incremented after
+`sync_response_count` was revoked from both roles.
+
+**Three `rls_enabled_no_policy` advisories are the design, not a backlog.**
+`responses`, `response_themes` and `waitlist_signups` have RLS on with zero
+policies on purpose — that is what makes them server-only. Do not "fix" them.
+
+**pgcrypto lives in a different schema depending on where you run.**
+`extensions` on Supabase, `public` on stock Postgres, absent on a bare install.
+The `token_hash` backfill sets a search path covering both and traps
+`undefined_function`, so the migration applies in all three cases.
+
+**Deleting a user does not delete their organization.**
+`profiles` cascades from `auth.users`, but `organizations` has no FK to it, so
+removing a user leaves the org and every unit, cycle and response under it
+orphaned. Correct for a multi-user org; a leak with one-org-per-signup. Needs a
+deliberate account-deletion path before launch.
+
 ## Organizations and access
 
 **One organization per signup.**

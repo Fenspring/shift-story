@@ -49,10 +49,21 @@ exception when duplicate_object then null; end $$;
 -- tokens (the SMS milestone) are the ones that will be stored hash-only.
 alter table public.response_tokens add column if not exists token_hash text;
 
-update public.response_tokens
-   set token_hash = encode(digest(token, 'sha256'), 'hex')
- where token_hash is null
-   and exists (select 1 from pg_extension where extname = 'pgcrypto');
+-- Backfill for rows created before this column existed. pgcrypto lives in
+-- `public` on a stock Postgres but in `extensions` on Supabase, so the search
+-- path covers both; if digest() is reachable from neither, the backfill is
+-- skipped. New tokens get their hash from the application at creation time, so
+-- nothing depends on this succeeding.
+do $$
+begin
+  perform set_config('search_path', 'public, extensions', true);
+  update public.response_tokens
+     set token_hash = encode(digest(token, 'sha256'), 'hex')
+   where token_hash is null;
+exception
+  when undefined_function or invalid_schema_name then
+    raise notice 'token_hash backfill skipped: digest() unavailable';
+end $$;
 
 create index if not exists response_tokens_hash_idx on public.response_tokens (token_hash);
 
