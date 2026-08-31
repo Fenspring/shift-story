@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { LogoMark } from "@/components/Logo";
 import { signOut } from "@/lib/auth/actions";
 import { requireManager } from "@/lib/auth/session";
 
@@ -12,7 +13,11 @@ export default async function AppLayout({
     <div className="flex min-h-dvh flex-col">
       <header className="border-hairline flex flex-wrap items-center justify-between gap-3 border-b px-[clamp(20px,5vw,48px)] py-4">
         <div className="flex items-baseline gap-4">
-          <Link href="/app" className="text-bone font-display text-[19px] font-medium no-underline">
+          <Link
+            href="/app"
+            className="text-bone font-display inline-flex items-center gap-2 text-[19px] font-medium no-underline"
+          >
+            <LogoMark className="h-[0.9em] w-[0.9em] shrink-0" />
             Shift Story
           </Link>
           <span className="text-dim text-[13px]">{manager.orgName}</span>
