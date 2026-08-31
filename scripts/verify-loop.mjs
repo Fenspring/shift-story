@@ -33,7 +33,8 @@ let passed = 0;
 let failed = 0;
 const check = (label, actual, expected) => {
   const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  ok ? passed++ : failed++;
+  if (ok) passed += 1;
+  else failed += 1;
   console.log(`  ${ok ? "PASS" : "FAIL"}  ${label}`);
   if (!ok) console.log(`        expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
 };

@@ -19,7 +19,7 @@ type CycleRow = {
 };
 
 type Outcome =
-  | { cycleId: string; result: "story"; themes: number; responsesDestroyed: number }
+  | { cycleId: string; result: "story"; themes: number | null; narrative: boolean; responsesDestroyed: number }
   | { cycleId: string; result: "carried"; reason: string }
   | { cycleId: string; result: "failed"; reason: string };
 
@@ -117,22 +117,38 @@ async function closeCycle(
   if (readErr) throw new Error(`could not read responses: ${readErr.message}`);
 
   const bodies = (responses ?? []).map((r) => r.body);
-  const detection = await detectThemes(bodies);
 
-  if (!detection.ok) {
-    // Leave the cycle open and its responses intact so a retry can succeed.
-    // Never destroy the text on a path where no story was written.
-    throw new Error(`theme detection ${detection.reason}: ${detection.detail}`);
+  // A narrative story is enrichment, not the point. The point is that the cycle
+  // closes and the raw text is destroyed — so that must not depend on an
+  // optional API being configured, reachable, or willing. When Claude is
+  // available its themes are richer and get used; when it is not, the
+  // deterministic counts already in response_themes are frozen instead.
+  let narrative: Awaited<ReturnType<typeof detectThemes>> | null = null;
+
+  if (process.env.ANTHROPIC_API_KEY?.trim()) {
+    try {
+      narrative = await detectThemes(bodies);
+      if (!narrative.ok) {
+        console.warn(
+          `[close] narrative unavailable for ${cycle.id} (${narrative.reason}: ${narrative.detail}) — closing on deterministic themes`,
+        );
+      }
+    } catch (err) {
+      console.warn(`[close] narrative threw for ${cycle.id}, closing on deterministic themes:`, err);
+    }
   }
 
-  // Writes the story and its themes, destroys the raw responses, and flips the
-  // status — atomically, in one Postgres function, so the destruction cannot be
-  // orphaned from the write that justifies it.
-  const { error: finalizeErr } = await admin.rpc("finalize_story", {
-    p_cycle_id: cycle.id,
-    p_model: detection.model || STORY_MODEL,
-    p_themes: detection.themes,
-  });
+  // Either way this writes the story and its themes, destroys the raw
+  // responses, and flips the status atomically in one Postgres function, so the
+  // destruction cannot be orphaned from the write that justifies it.
+  const { error: finalizeErr } =
+    narrative?.ok
+      ? await admin.rpc("finalize_story", {
+          p_cycle_id: cycle.id,
+          p_model: narrative.model || STORY_MODEL,
+          p_themes: narrative.themes,
+        })
+      : await admin.rpc("finalize_story_from_counts", { p_cycle_id: cycle.id });
 
   if (finalizeErr) throw new Error(`finalize failed: ${finalizeErr.message}`);
 
@@ -156,7 +172,8 @@ async function closeCycle(
   return {
     cycleId: cycle.id,
     result: "story",
-    themes: detection.themes.length,
+    themes: narrative?.ok ? narrative.themes.length : null,
+    narrative: Boolean(narrative?.ok),
     responsesDestroyed: bodies.length,
   };
 }

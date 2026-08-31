@@ -19,3 +19,6 @@ next-env.d.ts
 # Walkthrough output — screenshots, clips and the stitched video are produced
 # by `npm run demo` and regenerated on every run.
 demo-output/
+
+# Netlify build/runtime output — not user code.
+.netlify/

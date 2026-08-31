@@ -82,6 +82,11 @@ for a local server; leave it on for hosted providers with a self-signed chain.
 Implement `WaitlistStore` and return it from `getWaitlistStore()`. Nothing else
 in the app touches storage.
 
+## Deploying
+
+See [DEPLOY.md](DEPLOY.md) — Netlify config, environment variables, the hourly
+cycle-close schedule, and what is still open before real users.
+
 ## Automated product walkthrough
 
 ```bash

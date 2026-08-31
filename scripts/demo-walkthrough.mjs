@@ -182,7 +182,6 @@ async function main() {
 
     await page.getByRole("button", { name: /create unit/i }).click();
     await page.waitForURL(/\/app\/units\/[0-9a-f-]{36}$/, { timeout: 20_000 });
-    const unitUrl = page.url();
 
     // The weekly question is on screen before a cycle is even open.
     await expectVisible(page, page.getByText(/what made it harder/i), "the weekly question");
